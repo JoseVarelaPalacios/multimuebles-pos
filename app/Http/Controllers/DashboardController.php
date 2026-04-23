@@ -20,7 +20,15 @@ class DashboardController extends Controller
                                     ->orderBy('cantidad_stock', 'asc')
                                     ->get();
 
-        // 3. Mandar los datos a la vista
-        return view('dashboard', compact('ventasHoy', 'cantidadVentasHoy', 'mueblesPocoStock'));
+        // 3. Pedidos mas proximos a entregar
+        $proximasEntregas = Venta::whereNotNull('fecha_entrega')
+            ->whereDate('fecha_entrega', '>=', Carbon::today())
+            ->where('estado', '!=', 'cancelada')
+            ->orderBy('fecha_entrega', 'asc')
+            ->limit(5)
+            ->get();
+
+        // 4. Mandar los datos a la vista
+        return view('dashboard', compact('ventasHoy', 'cantidadVentasHoy', 'mueblesPocoStock', 'proximasEntregas'));
     }
 }
