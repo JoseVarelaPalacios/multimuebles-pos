@@ -11,13 +11,27 @@ use Illuminate\Support\Facades\Auth;
 
 class VentaController extends Controller
 {
+    private const CARGO_ENVIO_DOMICILIO = 200;
+
     /**
      * Muestra la lista de ventas realizadas.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $ventas = Venta::with('productos')->latest()->get();
-        return view('ventas.index', compact('ventas'));
+        $codigo = trim((string) $request->query('codigo', ''));
+
+        $ventasQuery = Venta::with('productos')->latest();
+
+        if ($codigo !== '') {
+            $codigoNormalizado = ltrim(str_ireplace('VNT-', '', $codigo), '0');
+            $codigoNormalizado = $codigoNormalizado === '' ? '0' : $codigoNormalizado;
+
+            $ventasQuery->where('id', (int) $codigoNormalizado);
+        }
+
+        $ventas = $ventasQuery->get();
+
+        return view('ventas.index', compact('ventas', 'codigo'));
     }
 
     /**
@@ -28,8 +42,14 @@ class VentaController extends Controller
         // Traemos los clientes y solo los muebles que tengan stock > 0
         $clientes = Cliente::orderBy('nombre')->get();
         $productos = Producto::where('cantidad_stock', '>', 0)->get();
-        
-        return view('ventas.create', compact('clientes', 'productos'));
+        $fechaMinEntrega = now()->addDays(21)->toDateString();
+        $tiposEntrega = [
+            'entrega' => 'Entrega',
+            'flete' => 'Flete / envio a domicilio',
+        ];
+        $cargoEnvio = self::CARGO_ENVIO_DOMICILIO;
+
+        return view('ventas.create', compact('clientes', 'productos', 'fechaMinEntrega', 'tiposEntrega', 'cargoEnvio'));
     }
 
     /**
@@ -39,8 +59,17 @@ class VentaController extends Controller
     {
         $request->validate([
             'cliente_id' => 'nullable|exists:clientes,id',
+            'tipo_entrega' => 'required|in:entrega,flete',
             'productos' => 'required|array', // Es un arreglo con los IDs de los muebles
+            'productos.*' => 'required|exists:productos,id',
             'cantidades' => 'required|array', // Es un arreglo con las cantidades de cada uno
+            'cantidades.*' => 'required|integer|min:1',
+            'fecha_entrega' => 'required|date|after_or_equal:' . now()->addDays(21)->toDateString(),
+            'nombre_entrega' => 'nullable|required_if:tipo_entrega,flete|string|max:255',
+            'calle_numero_entrega' => 'nullable|required_if:tipo_entrega,flete|string|max:255',
+            'colonia_entrega' => 'nullable|required_if:tipo_entrega,flete|string|max:255',
+            'estado_direccion_entrega' => 'nullable|required_if:tipo_entrega,flete|string|max:255',
+            'telefono_entrega' => 'nullable|required_if:tipo_entrega,flete|string|max:50',
         ]);
 
         // DB::transaction asegura que si algo falla a la mitad (ej. no hay stock),
@@ -55,6 +84,7 @@ class VentaController extends Controller
             foreach ($request->productos as $index => $producto_id) {
                 $producto = Producto::findOrFail($producto_id);
                 $cantidadSolicitada = $request->cantidades[$index];
+
 
                 // REGLA 1: Validación de Stock en Ventas
                 if ($cantidadSolicitada > $producto->cantidad_stock) {
@@ -73,10 +103,22 @@ class VentaController extends Controller
                 $producto->decrement('cantidad_stock', $cantidadSolicitada);
             }
 
+            $cargoEnvio = $request->tipo_entrega === 'flete' ? self::CARGO_ENVIO_DOMICILIO : 0;
+            $totalVenta += $cargoEnvio;
+
             // 2. Crear el Ticket General (La Venta)
             $venta = Venta::create([
                 'user_id' => Auth::id(), // El cajero actual
                 'cliente_id' => $request->cliente_id,
+                'tipo_entrega' => $request->tipo_entrega,
+                'fecha_entrega' => $request->fecha_entrega,
+                'estado' => 'pendiente',
+                'cargo_envio' => $cargoEnvio,
+                'nombre_entrega' => $request->tipo_entrega === 'flete' ? $request->nombre_entrega : null,
+                'calle_numero_entrega' => $request->tipo_entrega === 'flete' ? $request->calle_numero_entrega : null,
+                'colonia_entrega' => $request->tipo_entrega === 'flete' ? $request->colonia_entrega : null,
+                'estado_direccion_entrega' => $request->tipo_entrega === 'flete' ? $request->estado_direccion_entrega : null,
+                'telefono_entrega' => $request->tipo_entrega === 'flete' ? $request->telefono_entrega : null,
                 'total' => $totalVenta
             ]);
 
@@ -89,7 +131,7 @@ class VentaController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack(); // Hubo un error, cancelamos todo
-            return back()->with('error', $e->getMessage());
+            return back()->withInput()->with('error', $e->getMessage());
         }
     }
 
@@ -98,6 +140,19 @@ class VentaController extends Controller
     public function show(Venta $venta)
     {
         return view('ventas.show', compact('venta'));
+    }
+
+    public function actualizarEstado(Request $request, Venta $venta)
+    {
+        $request->validate([
+            'estado' => 'required|in:completada,pendiente,cancelada',
+        ]);
+
+        $venta->update([
+            'estado' => $request->estado,
+        ]);
+
+        return redirect()->route('ventas.index')->with('success', 'Estado de la venta actualizado correctamente.');
     }
 
     public function exportarExcel()
@@ -125,13 +180,17 @@ class VentaController extends Controller
             fprintf($archivo, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Escribimos los títulos de las columnas 
-            fputcsv($archivo, ['Folio de venta', 'Fecha de Venta', 'Total Cobrado']);
+            fputcsv($archivo, ['Folio de venta', 'Fecha de Venta', 'Tipo de Entrega', 'Fecha de Entrega', 'Cargo Envio', 'Estado', 'Total Cobrado']);
 
             // Recorremos cada venta y la escribimos como una fila de Excel
             foreach ($ventas as $venta) {
                 fputcsv($archivo, [
                     str_pad($venta->id, 5, '0', STR_PAD_LEFT),
                     $venta->created_at->format('d/m/Y H:i A'), // Da formato bonito a la fecha
+                    $venta->tipo_entrega === 'flete' ? 'Flete / envio a domicilio' : 'Entrega',
+                    optional($venta->fecha_entrega)->format('d/m/Y'),
+                    '$' . number_format($venta->cargo_envio ?? 0, 2),
+                    ucfirst($venta->estado ?? 'pendiente'),
                     '$' . number_format($venta->total, 2) // Asumiendo que tu columna se llama "total"
                 ]);
             }

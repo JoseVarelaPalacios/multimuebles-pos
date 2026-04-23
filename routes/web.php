@@ -18,6 +18,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 Route::middleware('auth')->group(function () {
 
     Route::get('/ventas/exportar', [App\Http\Controllers\VentaController::class, 'exportarExcel'])->name('ventas.exportar');
+    Route::patch('/ventas/{venta}/estado', [App\Http\Controllers\VentaController::class, 'actualizarEstado'])->name('ventas.actualizar-estado');
     
     // 1. Módulo de Inventario
     Route::resource('productos', ProductoController::class)->middleware('can:es-admin');
@@ -44,4 +45,3 @@ Route::middleware('auth')->group(function () {
 
 
 require __DIR__.'/auth.php';
-
