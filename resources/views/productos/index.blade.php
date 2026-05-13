@@ -42,7 +42,7 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
@@ -54,12 +54,26 @@
                                 @forelse ($productos as $producto)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">{{ $producto->nombre }}</div>
-                                            <div class="text-sm text-gray-500">{{ $producto->color }} - {{ $producto->dimensiones }}</div>
-                                            <div class="text-xs text-gray-500 mt-1 max-w-xs truncate" title="{{ $producto->descripcion }}">
-                                                {{ $producto->descripcion ?? 'Sin descripción registrada' }}
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 h-12 w-12">
+                                                    @if($producto->imagen)
+                                                        <img class="h-12 w-12 rounded-md object-cover shadow-sm border border-gray-200" src="{{ asset('storage/' . $producto->imagen) }}" alt="{{ $producto->nombre }}">
+                                                    @else
+                                                        <div class="h-12 w-12 bg-gray-100 rounded-md flex items-center justify-center text-gray-400 text-[10px] shadow-sm border border-gray-200 text-center leading-tight">
+                                                            Sin<br>Foto
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-bold text-gray-900">{{ $producto->nombre }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $producto->color }} {{ $producto->dimensiones ? '- ' . $producto->dimensiones : '' }}</div>
+                                                    <div class="text-xs text-gray-400 mt-1 max-w-[200px] truncate" title="{{ $producto->descripcion }}">
+                                                        {{ $producto->descripcion ?? 'Sin descripción registrada' }}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
+                                        
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
                                                 {{ $producto->material ?? 'No especificado' }}
@@ -88,7 +102,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                        <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                                             Aún no hay muebles registrados en el inventario.
                                         </td>
                                     </tr>

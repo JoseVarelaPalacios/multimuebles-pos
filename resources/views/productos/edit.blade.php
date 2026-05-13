@@ -9,9 +9,10 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                 
-                <form action="{{ route('productos.update', $producto) }}" method="POST">
+                <form action="{{ route('productos.update', $producto) }}" method="POST" enctype="multipart/form-data">
                     @csrf
-                    @method('PUT') <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    @method('PUT') 
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <x-input-label for="nombre" value="Nombre del Mueble *" />
                             <x-text-input id="nombre" class="block mt-1 w-full" type="text" name="nombre" :value="old('nombre', $producto->nombre)" required />
@@ -53,14 +54,57 @@
                             <x-input-label for="descripcion" value="Descripción Completa" />
                             <textarea name="descripcion" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" rows="3">{{ old('descripcion', $producto->descripcion) }}</textarea>
                         </div>
-                    </div>
+
+                        <div class="md:col-span-2 bg-gray-50 p-6 rounded-md border border-gray-200 mt-4">
+                            <x-input-label value="Imagen del Mueble" class="font-bold text-indigo-700 mb-4" />
+                            
+                            <div class="flex flex-col md:flex-row items-center gap-6">
+                                <div class="flex-shrink-0">
+                                    @if($producto->imagen)
+                                        <p class="text-xs text-gray-500 mb-2 uppercase font-bold text-center">Imagen Actual</p>
+                                        <img src="{{ asset('storage/' . $producto->imagen) }}" class="h-32 w-32 object-cover rounded-lg shadow-md border-2 border-white">
+                                    @else
+                                        <div class="h-32 w-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs text-center p-2">
+                                            Sin imagen<br>registrada
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="flex-grow w-full">
+                                    <x-input-label for="imagen" value="¿Deseas cambiar la imagen?" class="text-sm" />
+                                    <input id="imagen" type="file" name="imagen" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer" accept="image/jpeg, image/png, image/jpg">
+                                    <p class="text-xs text-gray-400 mt-2 italic">Selecciona un archivo solo si quieres reemplazar la foto actual. Máximo 2MB.</p>
+                                    <x-input-error :messages="$errors->get('imagen')" class="mt-2" />
+                                </div>
+                            </div>
+                        </div>
+                        </div>
 
                     <div class="flex items-center justify-end mt-6 border-t pt-4">
-                        <a href="{{ route('productos.index') }}" class="mr-4 text-gray-600">Cancelar</a>
-                        <x-primary-button class="bg-indigo-600">Guardar Cambios</x-primary-button>
+                        <a href="{{ route('productos.index') }}" class="mr-4 text-gray-600 font-medium hover:text-gray-900 transition">Cancelar</a>
+                        <x-primary-button class="bg-indigo-600 hover:bg-indigo-700">Guardar Cambios</x-primary-button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputImagen = document.getElementById('imagen');
+            
+            inputImagen.addEventListener('change', function() {
+                const archivo = this.files[0];
+                
+                if (archivo) {
+                    const tamañoMaximo = 2 * 1024 * 1024; // 2 MB en bytes
+                    
+                    if (archivo.size > tamañoMaximo) {
+                        alert("⚠️ ¡ALTO AHÍ!\n\nLa imagen que intentas subir es muy pesada (" + (archivo.size / 1024 / 1024).toFixed(2) + " MB).\nEl tamaño máximo permitido es de 2 MB para no saturar el sistema.\n\nPor favor, elige una imagen más ligera.");
+                        this.value = ''; // Limpiamos el input para evitar que se envíe
+                    }
+                }
+            });
+        });
+    </script>
 </x-app-layout>

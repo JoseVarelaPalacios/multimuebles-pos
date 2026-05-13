@@ -10,8 +10,9 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     
-                    <form action="{{ route('productos.store') }}" method="POST">
-                        @csrf <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form action="{{ route('productos.store') }}" method="POST" enctype="multipart/form-data">
+                        @csrf 
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             
                             <div class="md:col-span-2 border-b pb-4 mb-2">
                                 <h3 class="text-lg font-medium text-gray-900">Información Principal</h3>
@@ -74,6 +75,14 @@
                                 <textarea id="descripcion" name="descripcion" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" rows="3">{{ old('descripcion') }}</textarea>
                             </div>
 
+                            <div class="md:col-span-2 bg-gray-50 p-4 rounded-md border border-gray-200 mt-2">
+                                <x-input-label for="imagen" value="Foto del Mueble (Opcional)" class="font-bold text-indigo-700" />
+                                <input id="imagen" type="file" name="imagen" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer" accept="image/jpeg, image/png, image/jpg">
+                                <p class="text-xs text-gray-500 mt-2">Formatos aceptados: JPG, JPEG, PNG. Tamaño máximo: 2MB.</p>
+
+                                <x-input-error :messages="$errors->get('imagen')" class="mt-2" />
+                            </div>
+
                         </div>
 
                         <div class="flex items-center justify-end mt-8 border-t pt-6">
@@ -90,4 +99,25 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputImagen = document.getElementById('imagen');
+            
+            inputImagen.addEventListener('change', function() {
+                const archivo = this.files[0];
+                
+                if (archivo) {
+                    const tamañoMaximo = 2 * 1024 * 1024; // 2 Megabytes en bytes
+                    
+                    if (archivo.size > tamañoMaximo) {
+                        // Lanzamos la alerta al usuario
+                        alert(" ¡ALTO AHÍ!\n\nLa imagen que intentas subir es muy pesada (" + (archivo.size / 1024 / 1024).toFixed(2) + " MB).\nEl tamaño máximo permitido es de 2 MB para no saturar el sistema.\n\nPor favor, elige una imagen más ligera.");
+                        
+                        // Vaciamos el input para que no lo deje enviar
+                        this.value = '';
+                    }
+                }
+            });
+        });
+    </script>
 </x-app-layout>

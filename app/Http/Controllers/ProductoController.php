@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage; // <--- IMPORTANTE: Agrega esto para borrar fotos viejas
 
 class ProductoController extends Controller
 {
@@ -12,71 +13,57 @@ class ProductoController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Recibimos la palabra que el usuario escribió en el buscador
         $buscar = $request->input('buscar');
 
-        // 2. Buscamos en la base de datos (con o sin filtro) y PAGINAMOS de 5 en 5
         $productos = Producto::when($buscar, function ($query, $buscar) {
             return $query->where('nombre', 'LIKE', "%{$buscar}%")
                          ->orWhere('categoria', 'LIKE', "%{$buscar}%");
-        })->paginate(5); // <-- Aquí le decimos que solo traiga 5 por página
+        })->paginate(5);
 
-        // 3. Mandamos los datos a la pantalla
         return view('productos.index', compact('productos', 'buscar'));
     }
 
-    /**
-     * Muestra el formulario vacío para agregar un nuevo mueble.
-     */
     public function create()
     {
         return view('productos.create');
     }
 
     /**
-     * Recibe los datos del formulario, los valida y los guarda en la Base de Datos.
+     * Guarda un nuevo mueble.
      */
     public function store(Request $request)
     {
-        // 1. VALIDACIÓN (Cumpliendo la Regla 4 de tus requisitos)
         $request->validate([
-            // Obligatorios
             'nombre'         => 'required|string|max:255',
             'precio'         => 'required|numeric|min:0.1',
             'cantidad_stock' => 'required|integer|min:0',
             'categoria'      => 'required|string|max:255',
-            
-            // Opcionales (Características de los muebles)
-            'descripcion'    => 'nullable|string',
-            'material'       => 'nullable|string|max:255',
-            'dimensiones'    => 'nullable|string|max:255',
-            'color'          => 'nullable|string|max:255',
-        ], [
-            // Mensajes en español si el usuario se equivoca
-            'nombre.required' => 'El nombre del mueble es obligatorio.',
-            'precio.required' => 'Debes asignar un precio válido.',
-            'cantidad_stock.required' => 'Ingresa la cantidad en stock (puede ser 0).',
-            'categoria.required' => 'Selecciona una categoría para el mueble.',
+            'imagen'         => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        // 2. GUARDAR EN BASE DE DATOS
-        Producto::create($request->all());
+        $datos = $request->all();
 
-        // 3. REDIRIGIR A LA LISTA CON MENSAJE DE ÉXITO
+        if ($request->hasFile('imagen')) {
+            $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
+        }
+
+        Producto::create($datos);
+
         return redirect()->route('productos.index')
-                         ->with('success', 'El mueble se ha registrado correctamente en el inventario.');
+                        ->with('success', 'El mueble se ha registrado correctamente con su imagen.');
     }
 
-    // Dejamos las demás funciones vacías por ahora (las usaremos más adelante para Editar y Eliminar)
-    public function show(Producto $producto) {}
-
-    public function edit(Producto $producto) {
-        // Pasamos el mueble específico a la vista
+    public function edit(Producto $producto)
+    {
         return view('productos.edit', compact('producto'));
     }
 
-    public function update(Request $request, Producto $producto) {
-        // 1. Validamos (usamos la misma lógica que en store)
+    /**
+     * Actualiza un mueble existente incluyendo la gestión de la imagen.
+     */
+    public function update(Request $request, Producto $producto)
+    {
+        // 1. VALIDACIÓN (Incluimos la imagen)
         $request->validate([
             'nombre'         => 'required|string|max:255',
             'precio'         => 'required|numeric|min:0.1',
@@ -86,14 +73,48 @@ class ProductoController extends Controller
             'material'       => 'nullable|string|max:255',
             'dimensiones'    => 'nullable|string|max:255',
             'color'          => 'nullable|string|max:255',
+            'imagen'         => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+        ], [
+            'imagen.image' => 'El archivo debe ser una imagen válida.',
+            'imagen.max'   => 'La imagen no debe pesar más de 2MB.',
         ]);
 
-        // 2. Actualizamos el registro
-        $producto->update($request->all());
+        $datos = $request->all();
 
-        // 3. Redirigimos con mensaje de éxito
+        // 2. LÓGICA DE LA IMAGEN
+        if ($request->hasFile('imagen')) {
+            
+            // A. BORRAR IMAGEN ANTERIOR (Opcional pero recomendado para ahorrar espacio)
+            if ($producto->imagen) {
+                Storage::disk('public')->delete($producto->imagen);
+            }
+
+            // B. GUARDAR LA NUEVA
+            $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
+
+        } else {
+            // Si el usuario no subió una imagen nueva, quitamos "imagen" del arreglo
+            // para que no intente sobreescribir la ruta vieja con un valor nulo.
+            unset($datos['imagen']);
+        }
+
+        // 3. ACTUALIZAR EN LA BASE DE DATOS
+        $producto->update($datos);
+
         return redirect()->route('productos.index')
-                         ->with('success', 'Los datos del mueble se han actualizado.');
+                         ->with('success', 'Los datos del mueble y su imagen se han actualizado correctamente.');
     }
-    public function destroy(Producto $producto) {}
+
+    public function show(Producto $producto) {}
+
+    public function destroy(Producto $producto) 
+    {
+        // Bonus: Si borras un producto, ¡borra también su foto del disco!
+        if ($producto->imagen) {
+            Storage::disk('public')->delete($producto->imagen);
+        }
+        
+        $producto->delete();
+        return redirect()->route('productos.index')->with('success', 'Mueble eliminado del inventario.');
+    }
 }
