@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage; // <--- IMPORTANTE: Agrega esto para borrar fotos viejas
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ProductoController extends Controller
 {
@@ -109,12 +110,22 @@ class ProductoController extends Controller
 
     public function destroy(Producto $producto) 
     {
-        // Bonus: Si borras un producto, ¡borra también su foto del disco!
-        if ($producto->imagen) {
-            Storage::disk('public')->delete($producto->imagen);
-        }
-        
+        // Al usar SoftDeletes, esto ya no borra la fila, solo llena la columna 'deleted_at'
         $producto->delete();
-        return redirect()->route('productos.index')->with('success', 'Mueble eliminado del inventario.');
+        
+        return redirect()->route('productos.index')
+                         ->with('success', 'Mueble archivado');
+    }
+
+    public function reporteInventario()
+    {
+        // Traemos todos los productos ordenados por categoría
+        $productos = Producto::orderBy('categoria')->get();
+
+        // Cargamos la vista HTML y le pasamos los datos
+        $pdf = Pdf::loadView('reportes.inventario', compact('productos'));
+
+        // Mostramos el PDF en el navegador (si prefieres que se descargue directo, usa ->download('...'))
+        return $pdf->stream('Reporte_Inventario_Multimuebles.pdf');
     }
 }

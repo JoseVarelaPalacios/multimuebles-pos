@@ -23,6 +23,11 @@ Route::middleware('auth')->group(function () {
     // 1. Módulo de Inventario
     Route::resource('productos', ProductoController::class)->middleware('can:es-admin');
     
+    // NUEVA RUTA: Reporte de Inventario en PDF (Protegida solo para Administradores)
+    Route::get('/reportes/inventario', [ProductoController::class, 'reporteInventario'])
+        ->middleware('can:es-admin')
+        ->name('reportes.inventario');
+    
     // 2. Módulo de Ventas (Cumpliendo Regla 6: No borrar/editar)
     Route::resource('ventas', VentaController::class)->except(['edit', 'update', 'destroy']);
 
@@ -31,15 +36,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-
     // 4. Módulo de Usuarios (SOLO ADMIN)
     Route::middleware('can:es-admin')->group(function () {
         Route::get('/usuarios', [App\Http\Controllers\UserController::class, 'index'])->name('usuarios.index');
         Route::post('/usuarios', [App\Http\Controllers\UserController::class, 'store'])->name('usuarios.store');
         Route::put('/usuarios/{usuario}', [App\Http\Controllers\UserController::class, 'update'])->name('usuarios.update');
     });
-
-    
 
 });
 

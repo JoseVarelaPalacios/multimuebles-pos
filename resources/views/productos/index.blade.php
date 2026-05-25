@@ -19,9 +19,16 @@
                     
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-lg font-medium text-gray-900">Catálogo Actual</h3>
-                        <a href="{{ route('productos.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-md">
-                            + Añadir Mueble
-                        </a>
+                        
+                        <div class="flex space-x-3">
+                            <a href="{{ route('reportes.inventario') }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 focus:bg-red-700 active:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-md">
+                                📄 Generar PDF
+                            </a>
+
+                            <a href="{{ route('productos.create') }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-md">
+                                + Añadir Mueble
+                            </a>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -34,7 +41,7 @@
                                 </button>
                                 @if($buscar)
                                     <a href="{{ route('productos.index') }}" class="ml-3 text-red-500 hover:text-red-700 font-bold py-2">
-                                        ✖ Limpiar
+                                        Limpiar
                                     </a>
                                 @endif
                             </form>
@@ -94,11 +101,23 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
                                             ${{ number_format($producto->precio, 2) }}
                                         </td>
+
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('productos.edit', $producto) }}" class="text-indigo-600 hover:text-indigo-900 font-bold">
-                                                Editar
-                                            </a>
+                                            <div class="flex items-center justify-end space-x-3">
+                                                <a href="{{ route('productos.edit', $producto) }}" class="text-indigo-600 hover:text-indigo-900 font-bold transition">
+                                                    Editar
+                                                </a>
+
+                                                <form action="{{ route('productos.destroy', $producto) }}" method="POST" class="inline-block" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este mueble del inventario? \n\n¡Esta acción borrará la foto y los datos para siempre!');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="text-red-600 hover:text-red-900 font-bold transition">
+                                                        Eliminar
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
+
                                     </tr>
                                 @empty
                                     <tr>
